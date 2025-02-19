@@ -158,18 +158,19 @@ class FtgShell(cmd.Cmd):
 
     def do_level(self, arg):
         """set level to: notice|error|warn|info|fatal"""
-        if arg == "notice":
-            self.ftg.set_level(logging.DEBUG)
-        elif arg == "error":
-            self.ftg.set_min_level(logging.ERROR)
-        elif arg == "warn":
-            self.ftg.set_min_level(logging.WARNING)
-        elif arg == "info":
-            self.ftg.set_min_level(logging.INFO)
-        elif arg == "fatal":
-            self.ftg.set_level(logging.CRITICAL)
-        else:
-            print("Log level unknown")
+        match arg:
+            case "notice":
+                self.ftg.set_level(logging.DEBUG)
+            case "error":
+                self.ftg.set_min_level(logging.ERROR)
+            case "warn":
+                self.ftg.set_min_level(logging.WARNING)
+            case "info":
+                self.ftg.set_min_level(logging.INFO)
+            case "fatal":
+                self.ftg.set_level(logging.CRITICAL)
+            case _:
+                print("Log level unknown")
 
     def do_q(self, arg):
         """exit"""
@@ -373,16 +374,19 @@ class Ftg:
     def program(self, program):
         must = []
         must_not = []
-        for prog in program.split(","):
+
+        for prog in program.split(','):
             if prog.startswith("!"):
                 must_not.append(prog.lstrip("!"))
             else:
                 must.append(prog)
+
         for prog in must:
             try:
                 self.query["query"]["bool"]["must"].append({"term": {"program": prog}})
             except KeyError:
                 self.query["query"]["bool"]["must"] = [{"term": {"program": prog}}]
+
         for prog in must_not:
             try:
                 self.query["query"]["bool"]["must_not"].append(
@@ -408,15 +412,10 @@ class Ftg:
             self.query["query"]["bool"]["must"] = [({"term": {"host": host}})]
 
     def pattern_to_es(self, pattern):
-        if (
-            not pattern.startswith("/")
-            and not pattern.startswith("*")
-            and not pattern.endswith("*")
-        ):
-            pattern = "*" + pattern + "*"
-            return pattern.replace(" ", "* AND *")
-        else:
-            return pattern.replace(" ", " AND ")
+        if not (pattern.startswith("/") or pattern.startswith("*") or pattern.endswith("*")):
+            pattern = f"*{pattern}*"
+
+        return pattern.replace(" ", "* AND *" if "*" in pattern else " AND ")
 
     def rebuild_query(self, oldfield, newfield):
         for k, v in self.query.items():
@@ -873,6 +872,7 @@ def main():
         ftg.set_from(int(time.time()) - 1)
 
     ftg.prepare()
+
 
     if args.notice:
         ftg.set_min_level(logging.DEBUG)
